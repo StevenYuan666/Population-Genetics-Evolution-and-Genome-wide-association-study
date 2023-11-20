@@ -104,15 +104,15 @@ def gwas_with_bonferroni_correction(vcf_filename, phenotype_filename, alpha=0.05
     num_tests = len(genotypes)
 
     # Bonferroni corrected alpha
-    corrected_alpha = alpha / num_tests
+    corrected_alpha = alpha / 1000
 
     # Dictionary to store results
     results = {}
 
     for snp_id, snp_genotypes in genotypes.items():
         # Construct the contingency table for the current SNP
-        contingency_table = [[0, 0, 0],
-                             [0, 0, 0]]  # [[disease_yes_ref, disease_no_ref], [disease_yes_alt, disease_no_alt]]
+        contingency_table = [[1, 1, 1],
+                             [1, 1, 1]]  # [[disease_yes_ref, disease_no_ref], [disease_yes_alt, disease_no_alt]]
 
         for genotype, disease in zip(snp_genotypes, phenotypes):
             if genotype == 0:  # Assuming '0' is homozygous reference allel
@@ -131,10 +131,10 @@ def gwas_with_bonferroni_correction(vcf_filename, phenotype_filename, alpha=0.05
                 else:
                     contingency_table[1][2] += 1
 
-        while 0 in contingency_table[0]:
-            index = contingency_table[0].index(0)
-            contingency_table[0].remove(contingency_table[0][index])
-            contingency_table[1].remove(contingency_table[1][index])
+        # while 0 in contingency_table[0]:
+        #     index = contingency_table[0].index(0)
+        #     contingency_table[0].remove(contingency_table[0][index])
+        #     contingency_table[1].remove(contingency_table[1][index])
 
         # Perform the chi-squared test
         chi2, p, dof, expected = stats.chi2_contingency(contingency_table, correction=False)
