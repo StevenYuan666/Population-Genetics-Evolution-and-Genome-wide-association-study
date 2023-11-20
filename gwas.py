@@ -95,8 +95,77 @@ def gwas(vcf_filename, phenotype_filename):
     return p_values
 
 
+# Perform the GWAS and Bonferroni correction
+def gwas_with_bonferroni_correction(vcf_filename, phenotype_filename, alpha=0.05):
+    phenotypes = read_phenotypes(phenotype_filename)
+    genotypes = read_genotypes(vcf_filename)
+
+    # Total number of tests
+    num_tests = len(genotypes)
+
+    # Bonferroni corrected alpha
+    corrected_alpha = alpha / num_tests
+
+    # Dictionary to store results
+    results = {}
+
+    for snp_id, snp_genotypes in genotypes.items():
+        # Construct the contingency table for the current SNP
+        contingency_table = [[0, 0, 0],
+                             [0, 0, 0]]  # [[disease_yes_ref, disease_no_ref], [disease_yes_alt, disease_no_alt]]
+
+        for genotype, disease in zip(snp_genotypes, phenotypes):
+            if genotype == 0:  # Assuming '0' is homozygous reference allel
+                if disease == 1:
+                    contingency_table[0][0] += 1
+                else:
+                    contingency_table[1][0] += 1
+            elif genotype == 1:  # Assuming '1' is heterozygous allel
+                if disease == 1:
+                    contingency_table[0][1] += 1
+                else:
+                    contingency_table[1][1] += 1
+            else:  # Assuming '2' is homozygous alternate allel
+                if disease == 1:
+                    contingency_table[0][2] += 1
+                else:
+                    contingency_table[1][2] += 1
+
+        while 0 in contingency_table[0]:
+            index = contingency_table[0].index(0)
+            contingency_table[0].remove(contingency_table[0][index])
+            contingency_table[1].remove(contingency_table[1][index])
+
+        # Perform the chi-squared test
+        chi2, p, dof, expected = stats.chi2_contingency(contingency_table, correction=False)
+
+        # Store results if p-value is less than the Bonferroni corrected alpha
+        if p < corrected_alpha:
+            # Calculate odds ratios
+            odds_ratio_het = (contingency_table[0][1] / contingency_table[1][1]) / (
+                    contingency_table[0][0] / contingency_table[1][0])
+            odds_ratio_homo_alt = (contingency_table[0][2] / contingency_table[1][2]) / (
+                    contingency_table[0][0] / contingency_table[1][0])
+            results[snp_id] = {
+                'uncorrected_p': p,
+                'corrected_p': p * num_tests,  # Applying Bonferroni correction
+                'odds_ratio_het': odds_ratio_het,
+                'odds_ratio_homo_alt': odds_ratio_homo_alt
+            }
+
+    return results
+
+
 if __name__ == '__main__':
+    # # Use the function and print the results
+    # p_values = gwas('gwas_population.vcf', 'gwas_phenotypes.txt')
+    # significant_snps = [snp_id for snp_id, p_value in p_values.items() if p_value < 0.05]
+    # print(len(significant_snps))
     # Use the function and print the results
-    p_values = gwas('gwas_population.vcf', 'gwas_phenotypes.txt')
-    significant_snps = [snp_id for snp_id, p_value in p_values.items() if p_value < 0.05]
-    print(len(significant_snps))
+    results = gwas_with_bonferroni_correction('gwas_population.vcf', 'gwas_phenotypes.txt')
+
+    # Now print the table as specified
+    print("SNP ID\tUncorrected p-value\tCorrected p-value\tOdds Ratio (Het)\tOdds Ratio (Homo-Alt)")
+    for snp_id, data in results.items():
+        print(
+            f"{snp_id}\t{data['uncorrected_p']:.4g}\t{data['corrected_p']:.4g}\t{data['odds_ratio_het']:.4g}\t{data['odds_ratio_homo_alt']:.4g}")
