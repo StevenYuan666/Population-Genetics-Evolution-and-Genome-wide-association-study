@@ -104,7 +104,7 @@ def gwas_with_bonferroni_correction(vcf_filename, phenotype_filename, alpha=0.05
     num_tests = len(genotypes)
 
     # Bonferroni corrected alpha
-    corrected_alpha = alpha / 1000
+    corrected_alpha = alpha / 100
 
     # Dictionary to store results
     results = {}
